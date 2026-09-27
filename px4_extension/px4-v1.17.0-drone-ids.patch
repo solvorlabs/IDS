@@ -1,0 +1,568 @@
+diff --git a/ROMFS/px4fmu_common/init.d-posix/airframes/10040_sihsim_quadx b/ROMFS/px4fmu_common/init.d-posix/airframes/10040_sihsim_quadx
+index 623ee41f..1c29cb55 100644
+--- a/ROMFS/px4fmu_common/init.d-posix/airframes/10040_sihsim_quadx
++++ b/ROMFS/px4fmu_common/init.d-posix/airframes/10040_sihsim_quadx
+@@ -35,5 +35,11 @@ param set-default PWM_MAIN_FUNC3 103
+ param set-default PWM_MAIN_FUNC4 104
+ 
+ param set-default EKF2_GPS_DELAY 0
++param set-default SDLOG_PROFILE 33 # Default topics plus structured debug_key_value IDS events
+ 
+ param set SIH_VEHICLE_TYPE 0
++
++# The two modules exist only in the custom PX4 SITL build. Attacks and the IDS
++# run inside PX4; SIH ground-truth labels are not consumed by the detector.
++drone_ids_sim start
++drone_ids start
+diff --git a/boards/px4/sitl/default.px4board b/boards/px4/sitl/default.px4board
+index ebe4f4ca..2459560d 100644
+--- a/boards/px4/sitl/default.px4board
++++ b/boards/px4/sitl/default.px4board
+@@ -14,6 +14,8 @@ CONFIG_MODULES_CAMERA_FEEDBACK=y
+ CONFIG_MODULES_COMMANDER=y
+ CONFIG_MODULES_CONTROL_ALLOCATOR=y
+ CONFIG_MODULES_DATAMAN=y
++CONFIG_MODULES_DRONE_IDS=y
++CONFIG_MODULES_DRONE_IDS_SIM=y
+ CONFIG_MODULES_EKF2=y
+ CONFIG_EKF2_VERBOSE_STATUS=y
+ CONFIG_MODULES_EVENTS=y
+diff --git a/msg/CMakeLists.txt b/msg/CMakeLists.txt
+index 7eda1cc3..90949532 100644
+--- a/msg/CMakeLists.txt
++++ b/msg/CMakeLists.txt
+@@ -63,6 +63,7 @@ set(msg_files
+ 	DebugKeyValue.msg
+ 	DebugValue.msg
+ 	DebugVect.msg
++	DroneIdsSimControl.msg
+ 	DifferentialPressure.msg
+ 	DistanceSensor.msg
+ 	DistanceSensorModeChangeRequest.msg
+diff --git a/msg/DroneIdsSimControl.msg b/msg/DroneIdsSimControl.msg
+new file mode 100644
+index 00000000..3f95bac0
+--- /dev/null
++++ b/msg/DroneIdsSimControl.msg
+@@ -0,0 +1,9 @@
++uint64 timestamp                  # Simulator time in microseconds
++
++uint8 SCENARIO_NONE = 0
++uint8 SCENARIO_GPS_SPOOF = 1
++uint8 SCENARIO_BARO_TAMPER = 2
++uint8 SCENARIO_COMMAND_INJECTION = 3
++
++uint8 scenario                    # Ground-truth label; never consumed by the IDS
++bool active
+diff --git a/src/modules/drone_ids/CMakeLists.txt b/src/modules/drone_ids/CMakeLists.txt
+new file mode 100644
+index 00000000..d838961a
+--- /dev/null
++++ b/src/modules/drone_ids/CMakeLists.txt
+@@ -0,0 +1,8 @@
++px4_add_module(
++	MODULE modules__drone_ids
++	MAIN drone_ids
++	SRCS
++		drone_ids.cpp
++	DEPENDS
++		px4_work_queue
++)
+diff --git a/src/modules/drone_ids/Kconfig b/src/modules/drone_ids/Kconfig
+new file mode 100644
+index 00000000..8d08a554
+--- /dev/null
++++ b/src/modules/drone_ids/Kconfig
+@@ -0,0 +1,5 @@
++menuconfig MODULES_DRONE_IDS
++	bool "drone_ids"
++	default n
++	---help---
++		Enable the in-process simulated Drone Intrusion Detection System
+diff --git a/src/modules/drone_ids/drone_ids.cpp b/src/modules/drone_ids/drone_ids.cpp
+new file mode 100644
+index 00000000..2f00074f
+--- /dev/null
++++ b/src/modules/drone_ids/drone_ids.cpp
+@@ -0,0 +1,208 @@
++/****************************************************************************
++ * In-process, explainable SIH Drone IDS prototype.
++ * It consumes only simulated sensor and command observations. The simulator
++ * attack-label topic is deliberately not subscribed here.
++ ****************************************************************************/
++
++#include <px4_platform_common/log.h>
++#include <px4_platform_common/module.h>
++#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
++
++#include <uORB/Publication.hpp>
++#include <uORB/Subscription.hpp>
++#include <uORB/topics/debug_key_value.h>
++#include <uORB/topics/sensor_baro.h>
++#include <uORB/topics/sensor_gps.h>
++#include <uORB/topics/vehicle_command.h>
++
++#include <cmath>
++#include <cstring>
++
++using namespace time_literals;
++
++class DroneIds final : public ModuleBase<DroneIds>, public px4::ScheduledWorkItem
++{
++public:
++	DroneIds() : ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default) {}
++	~DroneIds() override = default;
++
++	static int task_spawn(int argc, char *argv[])
++	{
++		DroneIds *instance = new DroneIds();
++
++		if (instance == nullptr) {
++			PX4_ERR("allocation failed");
++			return PX4_ERROR;
++		}
++
++		_object.store(instance);
++		_task_id = task_id_is_work_queue;
++
++		if (instance->init()) {
++			return PX4_OK;
++		}
++
++		delete instance;
++		_object.store(nullptr);
++		_task_id = -1;
++		return PX4_ERROR;
++	}
++
++	static int custom_command(int argc, char *argv[]) { return print_usage("unknown command"); }
++	static int print_usage(const char *reason = nullptr)
++	{
++		if (reason) { PX4_WARN("%s", reason); }
++		PRINT_MODULE_USAGE_NAME("drone_ids", "security");
++		PRINT_MODULE_USAGE_COMMAND("start");
++		PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
++		return 0;
++	}
++
++	int print_status() override
++	{
++		PX4_INFO("alerts GPS=%u barometer=%u command=%u", (unsigned)_gps_alert_count,
++			 (unsigned)_baro_alert_count, (unsigned)_command_alert_count);
++		return 0;
++	}
++
++	bool init()
++	{
++		ScheduleOnInterval(20_ms);
++		PX4_INFO("observing sensor_gps, sensor_baro, and vehicle_command; SIM_ATTACK labels are excluded");
++		return true;
++	}
++
++	void Run() override
++	{
++		if (should_exit()) {
++			ScheduleClear();
++			exit_and_cleanup();
++			return;
++		}
++
++		sensor_gps_s gps{};
++
++		if (_gps_sub.update(&gps)) {
++			check_gps(gps);
++			_last_gps_altitude = (float)gps.altitude_msl_m;
++			_gps_ready = true;
++		}
++
++		sensor_baro_s baro{};
++
++		if (_baro_sub.update(&baro)) {
++			check_baro(baro);
++		}
++
++		vehicle_command_s command{};
++
++		if (_command_sub.update(&command)) {
++			check_command(command);
++		}
++	}
++
++private:
++	void check_gps(const sensor_gps_s &gps)
++	{
++		if (!_gps_reference_ready) {
++			_gps_reference_altitude = (float)gps.altitude_msl_m;
++		}
++
++		if (_gps_reference_ready && gps.timestamp_sample > _previous_gps.timestamp_sample) {
++			const float dt = (gps.timestamp_sample - _previous_gps.timestamp_sample) * 1e-6f;
++
++			if (dt > 0.04f && dt < 1.f) {
++				constexpr float kEarthMPerDeg = 111319.5f;
++				const float mean_lat_rad = (float)(0.5 * (gps.latitude_deg + _previous_gps.latitude_deg) * M_PI / 180.0);
++				const float north_delta = (float)(gps.latitude_deg - _previous_gps.latitude_deg) * kEarthMPerDeg;
++				const float east_delta = (float)(gps.longitude_deg - _previous_gps.longitude_deg) * kEarthMPerDeg * cosf(mean_lat_rad);
++				const float expected_north = 0.5f * (gps.vel_n_m_s + _previous_gps.vel_n_m_s) * dt;
++				const float expected_east = 0.5f * (gps.vel_e_m_s + _previous_gps.vel_e_m_s) * dt;
++				const float residual_m = hypotf(north_delta - expected_north, east_delta - expected_east);
++				const bool alert = residual_m > 8.f;
++
++				if (alert && !_gps_alert_active) {
++					emit_alert("IDS_GPS", residual_m);
++					++_gps_alert_count;
++					PX4_WARN("IDS_ALERT gps_position_velocity_residual=%.2fm", (double)residual_m);
++				}
++
++				_gps_alert_active = alert;
++			}
++		}
++
++		_previous_gps = gps;
++		_gps_reference_ready = true;
++	}
++
++	void check_baro(const sensor_baro_s &baro)
++	{
++		if (!_baro_reference_ready && baro.pressure > 1000.f) {
++			_baro_reference_pressure = baro.pressure;
++			_baro_reference_ready = true;
++			return;
++		}
++
++		if (!_baro_reference_ready || !_gps_ready || baro.pressure <= 1000.f) {
++			return;
++		}
++
++		const float baro_relative_altitude = 44330.f * (1.f - powf(baro.pressure / _baro_reference_pressure, 0.190294957f));
++		const float gps_relative_altitude = (float)_last_gps_altitude - _gps_reference_altitude;
++		const float residual_m = fabsf(gps_relative_altitude - baro_relative_altitude);
++		const bool alert = residual_m > 8.f;
++
++		if (alert && !_baro_alert_active) {
++			emit_alert("IDS_BARO", residual_m);
++			++_baro_alert_count;
++			PX4_WARN("IDS_ALERT gps_baro_altitude_residual=%.2fm", (double)residual_m);
++		}
++
++		_baro_alert_active = alert;
++	}
++
++	void check_command(const vehicle_command_s &command)
++	{
++		// PX4's normal GCS system ID is 255. Flag the controlled test sender ID 42.
++		if (command.from_external && command.source_system != 255 && !_command_alert_active) {
++			emit_alert("IDS_CMD", (float)command.source_system);
++			++_command_alert_count;
++			_command_alert_active = true;
++			PX4_WARN("IDS_ALERT unauthorized_vehicle_command source=%u command=%lu",
++				 (unsigned)command.source_system, (unsigned long)command.command);
++		}
++	}
++
++	void emit_alert(const char *key, float value)
++	{
++		debug_key_value_s alert{};
++		alert.timestamp = hrt_absolute_time();
++		strncpy(alert.key, key, sizeof(alert.key) - 1);
++		alert.value = value;
++		_alert_pub.publish(alert);
++	}
++
++	uORB::Subscription _gps_sub{ORB_ID(sensor_gps)};
++	uORB::Subscription _baro_sub{ORB_ID(sensor_baro)};
++	uORB::Subscription _command_sub{ORB_ID(vehicle_command)};
++	uORB::Publication<debug_key_value_s> _alert_pub{ORB_ID(debug_key_value)};
++
++	sensor_gps_s _previous_gps{};
++	float _gps_reference_altitude{0.f};
++	float _last_gps_altitude{0.f};
++	float _baro_reference_pressure{0.f};
++	uint32_t _gps_alert_count{0};
++	uint32_t _baro_alert_count{0};
++	uint32_t _command_alert_count{0};
++	bool _gps_reference_ready{false};
++	bool _baro_reference_ready{false};
++	bool _gps_ready{false};
++	bool _gps_alert_active{false};
++	bool _baro_alert_active{false};
++	bool _command_alert_active{false};
++};
++
++extern "C" __EXPORT int drone_ids_main(int argc, char *argv[])
++{
++	return DroneIds::main(argc, argv);
++}
+diff --git a/src/modules/drone_ids_sim/CMakeLists.txt b/src/modules/drone_ids_sim/CMakeLists.txt
+new file mode 100644
+index 00000000..c1f867b5
+--- /dev/null
++++ b/src/modules/drone_ids_sim/CMakeLists.txt
+@@ -0,0 +1,8 @@
++px4_add_module(
++	MODULE modules__drone_ids_sim
++	MAIN drone_ids_sim
++	SRCS
++		drone_ids_sim.cpp
++	DEPENDS
++		px4_work_queue
++)
+diff --git a/src/modules/drone_ids_sim/Kconfig b/src/modules/drone_ids_sim/Kconfig
+new file mode 100644
+index 00000000..0b951cb4
+--- /dev/null
++++ b/src/modules/drone_ids_sim/Kconfig
+@@ -0,0 +1,5 @@
++menuconfig MODULES_DRONE_IDS_SIM
++	bool "drone_ids_sim"
++	default n
++	---help---
++		Enable deterministic SIH-only cyberattack scenario injection
+diff --git a/src/modules/drone_ids_sim/drone_ids_sim.cpp b/src/modules/drone_ids_sim/drone_ids_sim.cpp
+new file mode 100644
+index 00000000..be32e764
+--- /dev/null
++++ b/src/modules/drone_ids_sim/drone_ids_sim.cpp
+@@ -0,0 +1,141 @@
++/****************************************************************************
++ * Simulation-only attack scheduler for Drone IDS experiments.
++ * This module is enabled only in the PX4 SITL test board.
++ ****************************************************************************/
++
++#include <px4_platform_common/log.h>
++#include <px4_platform_common/module.h>
++#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
++
++#include <uORB/Publication.hpp>
++#include <uORB/topics/debug_key_value.h>
++#include <uORB/topics/drone_ids_sim_control.h>
++#include <uORB/topics/vehicle_command.h>
++
++#include <cstring>
++
++using namespace time_literals;
++
++class DroneIdsSim final : public ModuleBase<DroneIdsSim>, public px4::ScheduledWorkItem
++{
++public:
++	DroneIdsSim() : ScheduledWorkItem(MODULE_NAME, px4::wq_configurations::hp_default) {}
++	~DroneIdsSim() override = default;
++
++	static int task_spawn(int argc, char *argv[])
++	{
++		DroneIdsSim *instance = new DroneIdsSim();
++
++		if (instance == nullptr) {
++			PX4_ERR("allocation failed");
++			return PX4_ERROR;
++		}
++
++		_object.store(instance);
++		_task_id = task_id_is_work_queue;
++
++		if (instance->init()) {
++			return PX4_OK;
++		}
++
++		delete instance;
++		_object.store(nullptr);
++		_task_id = -1;
++		return PX4_ERROR;
++	}
++
++	static int custom_command(int argc, char *argv[]) { return print_usage("unknown command"); }
++	static int print_usage(const char *reason = nullptr)
++	{
++		if (reason) { PX4_WARN("%s", reason); }
++		PRINT_MODULE_USAGE_NAME("drone_ids_sim", "simulation");
++		PRINT_MODULE_USAGE_COMMAND("start");
++		PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
++		return 0;
++	}
++
++	int print_status() override
++	{
++		PX4_INFO("active deterministic SIH attack schedule; scenario=%u", (unsigned)_last_scenario);
++		return 0;
++	}
++
++	bool init()
++	{
++		_start_time = hrt_absolute_time();
++		ScheduleOnInterval(50_ms);
++		PX4_INFO("SIH scenario schedule started (baseline 30s; GPS 30-42s, barometer 50-62s, command 70-72s)");
++		return true;
++	}
++
++	void Run() override
++	{
++		if (should_exit()) {
++			ScheduleClear();
++			exit_and_cleanup();
++			return;
++		}
++
++		const hrt_abstime now = hrt_absolute_time();
++		const float elapsed_s = (now - _start_time) * 1e-6f;
++		uint8_t scenario = drone_ids_sim_control_s::SCENARIO_NONE;
++		bool active = false;
++
++		if (elapsed_s >= 30.f && elapsed_s < 42.f) {
++			scenario = drone_ids_sim_control_s::SCENARIO_GPS_SPOOF;
++			active = true;
++
++		} else if (elapsed_s >= 50.f && elapsed_s < 62.f) {
++			scenario = drone_ids_sim_control_s::SCENARIO_BARO_TAMPER;
++			active = true;
++
++		} else if (elapsed_s >= 70.f && elapsed_s < 72.f) {
++			scenario = drone_ids_sim_control_s::SCENARIO_COMMAND_INJECTION;
++			active = true;
++		}
++
++		drone_ids_sim_control_s control{};
++		control.timestamp = now;
++		control.scenario = scenario;
++		control.active = active;
++		_control_pub.publish(control);
++
++		if (scenario != _last_scenario) {
++			_last_scenario = scenario;
++			debug_key_value_s truth{};
++			truth.timestamp = now;
++			strncpy(truth.key, "SIM_ATK", sizeof(truth.key) - 1);
++			truth.value = static_cast<float>(scenario);
++			_truth_log_pub.publish(truth);
++			PX4_INFO("SIM_ATTACK scenario=%u at %.2fs", (unsigned)scenario, (double)elapsed_s);
++		}
++
++		if (scenario == drone_ids_sim_control_s::SCENARIO_COMMAND_INJECTION && !_command_injected) {
++			vehicle_command_s command{};
++			command.timestamp = now;
++			command.command = 31010; // MAV_CMD_USER_1: non-actuating test command
++			command.target_system = 1;
++			command.target_component = 1;
++			command.source_system = 42; // Deliberately untrusted simulated sender
++			command.source_component = 190;
++			command.from_external = true;
++			command.confirmation = 0;
++			_command_pub.publish(command);
++			_command_injected = true;
++			PX4_WARN("SIM_ATTACK injected test-only MAV_CMD_USER_1 from system 42");
++		}
++	}
++
++private:
++	hrt_abstime _start_time{0};
++	uint8_t _last_scenario{255};
++	bool _command_injected{false};
++	uORB::Publication<drone_ids_sim_control_s> _control_pub{ORB_ID(drone_ids_sim_control)};
++	uORB::Publication<debug_key_value_s> _truth_log_pub{ORB_ID(debug_key_value)};
++	uORB::Publication<vehicle_command_s> _command_pub{ORB_ID(vehicle_command)};
++};
++
++extern "C" __EXPORT int drone_ids_sim_main(int argc, char *argv[])
++{
++	return DroneIdsSim::main(argc, argv);
++}
+diff --git a/src/modules/simulation/sensor_baro_sim/SensorBaroSim.cpp b/src/modules/simulation/sensor_baro_sim/SensorBaroSim.cpp
+index fc70998e..27a376c1 100644
+--- a/src/modules/simulation/sensor_baro_sim/SensorBaroSim.cpp
++++ b/src/modules/simulation/sensor_baro_sim/SensorBaroSim.cpp
+@@ -106,6 +106,7 @@ void SensorBaroSim::Run()
+ 	}
+ 
+ 	if (_vehicle_global_position_sub.updated()) {
++		_drone_ids_sim_control_sub.update(&_drone_ids_control);
+ 		vehicle_global_position_s gpos;
+ 
+ 		if (_vehicle_global_position_sub.copy(&gpos)) {
+@@ -158,6 +159,11 @@ void SensorBaroSim::Run()
+ 			// convert to hPa
+ 			float pressure = absolute_pressure_noisy + _sim_baro_off_p.get();
+ 
++			if (_drone_ids_control.active && _drone_ids_control.scenario == drone_ids_sim_control_s::SCENARIO_BARO_TAMPER) {
++				// A 20 m equivalent pressure-altitude bias at the simulated barometer.
++				pressure *= powf(1.f - (lapse_rate * 20.f / temperature_msl), 5.256f);
++			}
++
+ 			// calculate temperature in Celsius
+ 			float temperature = temperature_local - 273.0f + _sim_baro_off_t.get();
+ 
+diff --git a/src/modules/simulation/sensor_baro_sim/SensorBaroSim.hpp b/src/modules/simulation/sensor_baro_sim/SensorBaroSim.hpp
+index d1038453..6af791ad 100644
+--- a/src/modules/simulation/sensor_baro_sim/SensorBaroSim.hpp
++++ b/src/modules/simulation/sensor_baro_sim/SensorBaroSim.hpp
+@@ -44,6 +44,7 @@
+ #include <uORB/SubscriptionInterval.hpp>
+ #include <uORB/topics/parameter_update.h>
+ #include <uORB/topics/sensor_baro.h>
++#include <uORB/topics/drone_ids_sim_control.h>
+ #include <uORB/topics/vehicle_global_position.h>
+ 
+ using namespace time_literals;
+@@ -73,6 +74,7 @@ private:
+ 
+ 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+ 	uORB::Subscription _vehicle_global_position_sub{ORB_ID(vehicle_global_position_groundtruth)};
++	uORB::Subscription _drone_ids_sim_control_sub{ORB_ID(drone_ids_sim_control)};
+ 
+ 	bool _baro_rnd_use_last{false};
+ 	double _baro_rnd_y2{0.0};
+@@ -82,6 +84,7 @@ private:
+ 	hrt_abstime _last_update_time{0};
+ 
+ 	uORB::PublicationMulti<sensor_baro_s> _sensor_baro_pub{ORB_ID(sensor_baro)};
++	drone_ids_sim_control_s _drone_ids_control{};
+ 
+ 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
+ 
+diff --git a/src/modules/simulation/sensor_gps_sim/SensorGpsSim.cpp b/src/modules/simulation/sensor_gps_sim/SensorGpsSim.cpp
+index 56417063..c8d739cb 100644
+--- a/src/modules/simulation/sensor_gps_sim/SensorGpsSim.cpp
++++ b/src/modules/simulation/sensor_gps_sim/SensorGpsSim.cpp
+@@ -107,6 +107,7 @@ void SensorGpsSim::Run()
+ 	}
+ 
+ 	if (_vehicle_local_position_sub.updated() && _vehicle_global_position_sub.updated()) {
++		_drone_ids_sim_control_sub.update(&_drone_ids_control);
+ 
+ 		vehicle_local_position_s lpos{};
+ 		_vehicle_local_position_sub.copy(&lpos);
+@@ -118,6 +119,13 @@ void SensorGpsSim::Run()
+ 		double longitude = gpos.lon + math::degrees((double)generate_wgn() * 0.2 / CONSTANTS_RADIUS_OF_EARTH);
+ 		double altitude = (double)(gpos.alt + (generate_wgn() * 0.5f));
+ 
++		if (_drone_ids_control.active && _drone_ids_control.scenario == drone_ids_sim_control_s::SCENARIO_GPS_SPOOF) {
++			// Step spoof at the simulated GPS sensor boundary. Keep velocity fields
++			// truthful so the IDS can test position/velocity consistency.
++			latitude += math::degrees(30.0 / CONSTANTS_RADIUS_OF_EARTH);
++			longitude += math::degrees(40.0 / (CONSTANTS_RADIUS_OF_EARTH * cos(latitude * M_PI / 180.0)));
++		}
++
+ 		Vector3f gps_vel = Vector3f{lpos.vx, lpos.vy, lpos.vz} + noiseGauss3f(0.06f, 0.077f, 0.158f);
+ 
+ 		// device id
+diff --git a/src/modules/simulation/sensor_gps_sim/SensorGpsSim.hpp b/src/modules/simulation/sensor_gps_sim/SensorGpsSim.hpp
+index fac4e520..07425afd 100644
+--- a/src/modules/simulation/sensor_gps_sim/SensorGpsSim.hpp
++++ b/src/modules/simulation/sensor_gps_sim/SensorGpsSim.hpp
+@@ -43,6 +43,7 @@
+ #include <uORB/SubscriptionInterval.hpp>
+ #include <uORB/topics/parameter_update.h>
+ #include <uORB/topics/sensor_gps.h>
++#include <uORB/topics/drone_ids_sim_control.h>
+ #include <uORB/topics/vehicle_global_position.h>
+ #include <uORB/topics/vehicle_local_position.h>
+ 
+@@ -77,8 +78,10 @@ private:
+ 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
+ 	uORB::Subscription _vehicle_global_position_sub{ORB_ID(vehicle_global_position_groundtruth)};
+ 	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position_groundtruth)};
++	uORB::Subscription _drone_ids_sim_control_sub{ORB_ID(drone_ids_sim_control)};
+ 
+ 	uORB::PublicationMulti<sensor_gps_s> _sensor_gps_pub{ORB_ID(sensor_gps)};
++	drone_ids_sim_control_s _drone_ids_control{};
+ 
+ 	perf_counter_t _loop_perf{perf_alloc(PC_ELAPSED, MODULE_NAME": cycle")};
+ 

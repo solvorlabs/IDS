@@ -1,0 +1,97 @@
+{
+  "samples": 24434,
+  "accuracy": 0.608209871490546,
+  "macro_f1": 0.505747802862543,
+  "per_class": {
+    "Blackhole Attack": {
+      "precision": 0.5116072310579868,
+      "recall": 0.9948136765270841,
+      "f1": 0.6757127014156173,
+      "support": 5206
+    },
+    "Flooding Attack": {
+      "precision": 0.8459016393442623,
+      "recall": 0.13079847908745248,
+      "f1": 0.22656421514818884,
+      "support": 3945
+    },
+    "Normal Traffic": {
+      "precision": 0.8513462267728479,
+      "recall": 0.8552380952380952,
+      "f1": 0.8532877232991257,
+      "support": 5250
+    },
+    "Sybil Attack": {
+      "precision": 0.5849398369776168,
+      "recall": 0.9387458471760798,
+      "f1": 0.7207652451175767,
+      "support": 4816
+    },
+    "Wormhole Attack": {
+      "precision": 0.22206303724928367,
+      "recall": 0.029710561625455243,
+      "f1": 0.052409129332206254,
+      "support": 5217
+    }
+  },
+  "confusion_matrix": {
+    "Blackhole Attack": {
+      "Blackhole Attack": 5179,
+      "Flooding Attack": 0,
+      "Normal Traffic": 8,
+      "Sybil Attack": 0,
+      "Wormhole Attack": 19
+    },
+    "Flooding Attack": {
+      "Blackhole Attack": 124,
+      "Flooding Attack": 516,
+      "Normal Traffic": 2,
+      "Sybil Attack": 2902,
+      "Wormhole Attack": 401
+    },
+    "Normal Traffic": {
+      "Blackhole Attack": 601,
+      "Flooding Attack": 0,
+      "Normal Traffic": 4490,
+      "Sybil Attack": 124,
+      "Wormhole Attack": 35
+    },
+    "Sybil Attack": {
+      "Blackhole Attack": 73,
+      "Flooding Attack": 94,
+      "Normal Traffic": 40,
+      "Sybil Attack": 4521,
+      "Wormhole Attack": 88
+    },
+    "Wormhole Attack": {
+      "Blackhole Attack": 4146,
+      "Flooding Attack": 0,
+      "Normal Traffic": 734,
+      "Sybil Attack": 182,
+      "Wormhole Attack": 155
+    }
+  },
+  "dataset": "UAVIDS-2025",
+  "split": "FlowID mod 5 held-out rows",
+  "train_samples": 97737,
+  "test_samples": 24434,
+  "features": [
+    "FlowDuration/s",
+    "TxPackets",
+    "RxPackets",
+    "LostPackets",
+    "TxBytes",
+    "RxBytes",
+    "TxPacketRate/s",
+    "RxPacketRate/s",
+    "TxByteRate/s",
+    "RxByteRate/s",
+    "MeanDelay/s",
+    "MeanJitter/s",
+    "Throughput/Kbps",
+    "MeanPacketSize",
+    "PacketDropRate",
+    "AverageHopCount"
+  ],
+  "model": "Gaussian Naive Bayes (standard-library implementation)"
+}

@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.venv/
+.work/
+.pytest_cache/
+build/
+dist/
+
+# Intermediate and duplicate run artifacts
+/reports/sih-smoke/
+/reports/px4-inproc/structured/
+/reports/px4-inproc/topics/
+/reports/px4-inproc/px4_sih_inprocess_stationary.ulg
+/reports/px4-inproc/px4_sih_inprocess.ulg
+/reports/latest/synthetic/synthetic_uav_ids.csv
+/reports/latest/synthetic/synthetic_uav_ids.manifest.json
+/reports/latest/synthetic/alerts.csv
+/reports/latest/public/uavids_2025_predictions.csv

@@ -1,0 +1,29 @@
+{
+  "dataset": "synthetic_uav_ids.csv",
+  "generator": "drone_ids.synthetic.generate_rows",
+  "generator_version": "0.1.0",
+  "seed": 20260927,
+  "runs": 120,
+  "duration_s": 120,
+  "rate_hz": 5,
+  "rows": 72120,
+  "scenarios": [
+    "normal",
+    "gps_spoof",
+    "command_injection",
+    "telemetry_tampering",
+    "communication_dos",
+    "firmware_integrity"
+  ],
+  "class_counts": {
+    "command_injection": 6802,
+    "communication_dos": 7016,
+    "firmware_integrity": 6731,
+    "gps_spoof": 6904,
+    "normal": 37921,
+    "telemetry_tampering": 6746
+  },
+  "sha256": "984aa65a71533a2ad03752d05e5d85994010114b12fc4eff40b3d257e5d067b0",
+  "truth_and_labels_are_ids_excluded": true,
+  "description": "Deterministic synthetic local ENU flight path with noisy sensor and link observations; not field data."
+}

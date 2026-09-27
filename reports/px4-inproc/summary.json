@@ -1,0 +1,86 @@
+{
+  "firmware_base": "PX4 v1.17.0",
+  "ulog": "px4_sih_inprocess_takeoff.ulg",
+  "duration_s": 114.884,
+  "file_bytes": 24562761,
+  "logged_samples": {
+    "debug_key_value": 11,
+    "vehicle_local_position": 14334,
+    "vehicle_local_position_groundtruth": 5736,
+    "sensor_gps": 114,
+    "sensor_baro": 114
+  },
+  "sim_attack_transitions": [
+    {
+      "time_s": 0.004,
+      "key": "SIM_ATK",
+      "value": 0.0
+    },
+    {
+      "time_s": 30.0,
+      "key": "SIM_ATK",
+      "value": 1.0
+    },
+    {
+      "time_s": 42.0,
+      "key": "SIM_ATK",
+      "value": 0.0
+    },
+    {
+      "time_s": 50.0,
+      "key": "SIM_ATK",
+      "value": 2.0
+    },
+    {
+      "time_s": 62.0,
+      "key": "SIM_ATK",
+      "value": 0.0
+    },
+    {
+      "time_s": 70.0,
+      "key": "SIM_ATK",
+      "value": 3.0
+    },
+    {
+      "time_s": 72.0,
+      "key": "SIM_ATK",
+      "value": 0.0
+    }
+  ],
+  "ids_alerts": [
+    {
+      "time_s": 30.02,
+      "key": "IDS_GPS",
+      "value": 49.695
+    },
+    {
+      "time_s": 42.02,
+      "key": "IDS_GPS",
+      "value": 50.1706
+    },
+    {
+      "time_s": 50.02,
+      "key": "IDS_BARO",
+      "value": 21.0962
+    },
+    {
+      "time_s": 70.0,
+      "key": "IDS_CMD",
+      "value": 42.0
+    }
+  ],
+  "test_commands": [
+    {
+      "time_s": 70.0,
+      "command": 31010,
+      "source_system": 42,
+      "from_external": true
+    }
+  ],
+  "position_observation": {
+    "estimated_local_z_min_m": -2.701,
+    "estimated_local_z_max_m": 0.115,
+    "estimated_xy_x_range_m": 57.599,
+    "estimated_xy_y_range_m": 76.714
+  }
+}

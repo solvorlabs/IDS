@@ -1,0 +1,101 @@
+run_id,attack_type,first_time_s,last_time_s,alert_count,severity,rule
+run_0001,gps_spoof,58.0,120.0,307,high,GPS/odometry disagreement
+run_0002,command_injection,59.4,120.0,304,critical,Unapproved command observed
+run_0003,telemetry_tampering,46.6,120.0,368,high,GPS/barometer altitude disagreement
+run_0004,communication_dos,51.4,120.0,344,high,Heartbeat/link degradation
+run_0005,firmware_integrity,52.2,120.0,340,critical,Firmware measurement mismatch
+run_0007,gps_spoof,60.6,120.0,292,high,GPS/odometry disagreement
+run_0008,command_injection,55.6,120.0,323,critical,Unapproved command observed
+run_0009,telemetry_tampering,48.2,120.0,360,high,GPS/barometer altitude disagreement
+run_0010,communication_dos,45.8,120.0,372,high,Heartbeat/link degradation
+run_0011,firmware_integrity,49.8,120.0,352,critical,Firmware measurement mismatch
+run_0013,gps_spoof,63.6,120.0,271,high,GPS/odometry disagreement
+run_0014,command_injection,50.0,120.0,351,critical,Unapproved command observed
+run_0015,telemetry_tampering,57.2,120.0,315,high,GPS/barometer altitude disagreement
+run_0016,communication_dos,49.2,120.0,355,high,Heartbeat/link degradation
+run_0017,firmware_integrity,55.8,120.0,322,critical,Firmware measurement mismatch
+run_0019,gps_spoof,59.6,120.0,291,high,GPS/odometry disagreement
+run_0020,command_injection,51.4,120.0,344,critical,Unapproved command observed
+run_0021,telemetry_tampering,54.2,120.0,330,high,GPS/barometer altitude disagreement
+run_0022,communication_dos,43.6,120.0,383,high,Heartbeat/link degradation
+run_0023,firmware_integrity,56.0,120.0,321,critical,Firmware measurement mismatch
+run_0025,gps_spoof,53.6,120.0,329,high,GPS/odometry disagreement
+run_0026,command_injection,56.2,120.0,320,critical,Unapproved command observed
+run_0027,telemetry_tampering,47.8,120.0,362,high,GPS/barometer altitude disagreement
+run_0028,communication_dos,51.4,120.0,344,high,Heartbeat/link degradation
+run_0029,firmware_integrity,43.4,120.0,384,critical,Firmware measurement mismatch
+run_0031,gps_spoof,49.6,120.0,349,high,GPS/odometry disagreement
+run_0032,command_injection,43.8,120.0,382,critical,Unapproved command observed
+run_0033,telemetry_tampering,44.8,120.0,377,high,GPS/barometer altitude disagreement
+run_0034,communication_dos,59.0,120.0,306,high,Heartbeat/link degradation
+run_0035,firmware_integrity,46.8,120.0,367,critical,Firmware measurement mismatch
+run_0037,gps_spoof,63.6,120.0,282,high,GPS/odometry disagreement
+run_0038,command_injection,56.2,120.0,320,critical,Unapproved command observed
+run_0039,telemetry_tampering,56.0,120.0,321,high,GPS/barometer altitude disagreement
+run_0040,communication_dos,45.4,120.0,374,high,Heartbeat/link degradation
+run_0041,firmware_integrity,58.0,120.0,311,critical,Firmware measurement mismatch
+run_0043,gps_spoof,51.8,120.0,342,high,GPS/odometry disagreement
+run_0044,command_injection,44.6,120.0,378,critical,Unapproved command observed
+run_0045,telemetry_tampering,47.0,120.0,366,high,GPS/barometer altitude disagreement
+run_0046,communication_dos,51.0,120.0,346,high,Heartbeat/link degradation
+run_0047,firmware_integrity,58.0,120.0,311,critical,Firmware measurement mismatch
+run_0049,gps_spoof,56.0,120.0,308,high,GPS/odometry disagreement
+run_0050,command_injection,59.6,120.0,303,critical,Unapproved command observed
+run_0051,telemetry_tampering,51.8,120.0,342,high,GPS/barometer altitude disagreement
+run_0052,communication_dos,43.8,120.0,382,high,Heartbeat/link degradation
+run_0053,firmware_integrity,48.6,120.0,358,critical,Firmware measurement mismatch
+run_0055,gps_spoof,54.2,120.0,320,high,GPS/odometry disagreement
+run_0056,command_injection,49.6,120.0,353,critical,Unapproved command observed
+run_0057,telemetry_tampering,52.6,120.0,338,high,GPS/barometer altitude disagreement
+run_0058,communication_dos,59.2,120.0,305,high,Heartbeat/link degradation
+run_0059,firmware_integrity,48.2,120.0,360,critical,Firmware measurement mismatch
+run_0061,gps_spoof,48.4,120.0,349,high,GPS/odometry disagreement
+run_0062,command_injection,60.0,120.0,301,critical,Unapproved command observed
+run_0063,telemetry_tampering,51.4,120.0,344,high,GPS/barometer altitude disagreement
+run_0064,communication_dos,48.2,120.0,360,high,Heartbeat/link degradation
+run_0065,firmware_integrity,44.2,120.0,380,critical,Firmware measurement mismatch
+run_0067,gps_spoof,57.6,120.0,310,high,GPS/odometry disagreement
+run_0068,command_injection,58.8,120.0,307,critical,Unapproved command observed
+run_0069,telemetry_tampering,57.0,120.0,316,high,GPS/barometer altitude disagreement
+run_0070,communication_dos,44.0,120.0,381,high,Heartbeat/link degradation
+run_0071,firmware_integrity,47.2,120.0,365,critical,Firmware measurement mismatch
+run_0073,gps_spoof,52.4,120.0,324,high,GPS/odometry disagreement
+run_0074,command_injection,44.4,120.0,379,critical,Unapproved command observed
+run_0075,telemetry_tampering,56.8,120.0,317,high,GPS/barometer altitude disagreement
+run_0076,communication_dos,54.6,120.0,328,high,Heartbeat/link degradation
+run_0077,firmware_integrity,59.6,120.0,303,critical,Firmware measurement mismatch
+run_0079,gps_spoof,54.8,120.0,321,high,GPS/odometry disagreement
+run_0080,command_injection,47.0,120.0,366,critical,Unapproved command observed
+run_0081,telemetry_tampering,54.0,120.0,331,high,GPS/barometer altitude disagreement
+run_0082,communication_dos,58.6,120.0,308,high,Heartbeat/link degradation
+run_0083,firmware_integrity,55.8,120.0,322,critical,Firmware measurement mismatch
+run_0085,gps_spoof,64.2,120.0,277,high,GPS/odometry disagreement
+run_0086,command_injection,52.2,120.0,340,critical,Unapproved command observed
+run_0087,telemetry_tampering,54.6,120.0,328,high,GPS/barometer altitude disagreement
+run_0088,communication_dos,46.2,120.0,370,high,Heartbeat/link degradation
+run_0089,firmware_integrity,55.2,120.0,325,critical,Firmware measurement mismatch
+run_0091,gps_spoof,52.8,120.0,330,high,GPS/odometry disagreement
+run_0092,command_injection,48.6,120.0,358,critical,Unapproved command observed
+run_0093,telemetry_tampering,58.0,120.0,311,high,GPS/barometer altitude disagreement
+run_0094,communication_dos,45.0,120.0,376,high,Heartbeat/link degradation
+run_0095,firmware_integrity,51.4,120.0,344,critical,Firmware measurement mismatch
+run_0097,gps_spoof,62.6,120.0,279,high,GPS/odometry disagreement
+run_0098,command_injection,55.8,120.0,322,critical,Unapproved command observed
+run_0099,telemetry_tampering,45.8,120.0,372,high,GPS/barometer altitude disagreement
+run_0100,communication_dos,47.2,120.0,365,high,Heartbeat/link degradation
+run_0101,firmware_integrity,55.2,120.0,325,critical,Firmware measurement mismatch
+run_0103,gps_spoof,62.0,120.0,284,high,GPS/odometry disagreement
+run_0104,command_injection,43.8,120.0,382,critical,Unapproved command observed
+run_0105,telemetry_tampering,54.8,120.0,327,high,GPS/barometer altitude disagreement
+run_0106,communication_dos,53.0,120.0,336,high,Heartbeat/link degradation
+run_0107,firmware_integrity,55.4,120.0,324,critical,Firmware measurement mismatch
+run_0109,gps_spoof,46.8,120.0,350,high,GPS/odometry disagreement
+run_0110,command_injection,57.2,120.0,315,critical,Unapproved command observed
+run_0111,telemetry_tampering,56.6,120.0,318,high,GPS/barometer altitude disagreement
+run_0112,communication_dos,54.6,120.0,328,high,Heartbeat/link degradation
+run_0113,firmware_integrity,59.6,120.0,303,critical,Firmware measurement mismatch
+run_0115,gps_spoof,53.4,120.0,329,high,GPS/odometry disagreement
+run_0116,command_injection,49.4,120.0,354,critical,Unapproved command observed
+run_0117,telemetry_tampering,59.6,120.0,303,high,GPS/barometer altitude disagreement
+run_0118,communication_dos,49.6,120.0,353,high,Heartbeat/link degradation
+run_0119,firmware_integrity,57.4,120.0,314,critical,Firmware measurement mismatch
